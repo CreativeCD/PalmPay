@@ -40,3 +40,7 @@ biometric/samples/*.jpg
 # Keep the samples directory and its LICENSE.txt
 !biometric/samples/.gitkeep
 !biometric/samples/LICENSE.txt
+
+# ── Biometric pipeline debug outputs (intermediate images) ─
+biometric/test-output/*
+!biometric/test-output/.gitkeep
