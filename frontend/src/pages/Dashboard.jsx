@@ -12,9 +12,23 @@ const s = {
     padding: '28px 32px',
     marginBottom: 24,
   },
-  bal: { fontSize: 44, fontWeight: 700, color: '#e94560', margin: '8px 0' },
+  bal: { fontSize: 36, fontWeight: 700, color: '#e94560', margin: '8px 0' },
   note: { fontSize: 12, color: '#aaa', marginTop: 4 },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginTop: 16 },
+  placeholderAlert: {
+    marginTop: 12,
+    padding: '10px 14px',
+    borderRadius: 6,
+    background: 'rgba(233, 69, 96, 0.15)',
+    border: '1px solid #e94560',
+    color: '#ff8a9e',
+    fontSize: 13,
+  },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+    gap: 14,
+    marginTop: 16,
+  },
   action: {
     display: 'flex',
     flexDirection: 'column',
@@ -47,29 +61,49 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [balance, setBalance] = useState(null);
   const [err, setErr] = useState('');
+  const [apiPending, setApiPending] = useState(false);
 
   useEffect(() => {
     client
       .get('/wallet')
-      .then((r) => setBalance(r.data.balance))
-      .catch(() => setErr('Could not load wallet balance. Ensure backend and database are running.'));
+      .then((r) => {
+        setBalance(r.data.balance);
+      })
+      .catch((error) => {
+        const errorMsg =
+          error.response?.data?.error ||
+          (error.response?.status === 501
+            ? 'Wallet endpoint pending backend implementation (501 Not Implemented).'
+            : 'Could not load wallet balance. Ensure backend is running.');
+        setErr(errorMsg);
+        setApiPending(true);
+      });
   }, []);
 
   return (
     <div style={s.page}>
       <h1 style={{ fontWeight: 700, fontSize: 24, marginBottom: 20 }}>
-        Welcome, {user?.name}
+        Welcome, {user?.name || 'User'}
       </h1>
 
       <div style={s.card}>
         <div style={{ fontSize: 14, color: '#aaa' }}>Demo Wallet Balance</div>
         <div style={s.bal}>
-          {balance !== null ? `₹ ${parseFloat(balance).toFixed(2)}` : '…'}
+          {balance !== null
+            ? `₹ ${parseFloat(balance).toFixed(2)}`
+            : apiPending
+            ? '[API Pending Implementation]'
+            : 'Loading…'}
         </div>
         <div style={s.note}>⚠ Simulated balance — closed-loop academic capstone</div>
-        {err && <div style={{ color: '#e94560', marginTop: 8, fontSize: 13 }}>{err}</div>}
+        {err && (
+          <div style={s.placeholderAlert}>
+            <strong>Endpoint Status:</strong> {err}
+          </div>
+        )}
       </div>
 
+      <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>Quick Navigation</h2>
       <div style={s.grid}>
         <Link to="/enroll" style={s.action}>
           <span style={{ fontSize: 24 }}>🖐</span>
@@ -81,7 +115,7 @@ export default function Dashboard() {
         </Link>
         <Link to="/pay" style={s.action}>
           <span style={{ fontSize: 24 }}>💳</span>
-          <span>Pay Merchant</span>
+          <span>Merchant Payment</span>
         </Link>
         <Link to="/transactions" style={s.action}>
           <span style={{ fontSize: 24 }}>📋</span>
