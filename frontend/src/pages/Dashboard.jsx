@@ -64,10 +64,14 @@ export default function Dashboard() {
   const [apiPending, setApiPending] = useState(false);
 
   useEffect(() => {
+    // GET /api/wallet
     client
       .get('/wallet')
       .then((r) => {
-        setBalance(r.data.balance);
+        const bal = r.data?.wallet?.balance ?? r.data?.balance;
+        if (bal !== undefined && bal !== null) {
+          setBalance(parseFloat(bal));
+        }
       })
       .catch((error) => {
         const errorMsg =
@@ -90,7 +94,7 @@ export default function Dashboard() {
         <div style={{ fontSize: 14, color: '#aaa' }}>Demo Wallet Balance</div>
         <div style={s.bal}>
           {balance !== null
-            ? `₹ ${parseFloat(balance).toFixed(2)}`
+            ? `₹ ${balance.toFixed(2)}`
             : apiPending
             ? '[API Pending Implementation]'
             : 'Loading…'}

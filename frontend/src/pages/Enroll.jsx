@@ -1,22 +1,25 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import ImageUploader from '../components/ImageUploader.jsx';
 import client from '../api/client.js';
 
 const s = {
-  page: { maxWidth: 520, margin: '40px auto', fontFamily: 'sans-serif', padding: 24 },
-  title: { fontSize: 24, fontWeight: 700, marginBottom: 8 },
-  desc: { color: '#555', fontSize: 14, marginBottom: 20, lineHeight: 1.5 },
-  notice: {
-    background: '#f8f9fa',
-    border: '1px solid #ddd',
-    borderRadius: 6,
-    padding: '10px 14px',
+  page: { maxWidth: 540, margin: '40px auto', fontFamily: 'sans-serif', padding: 24 },
+  title: { fontSize: 26, fontWeight: 700, marginBottom: 8 },
+  desc: { color: '#4a5568', fontSize: 14, marginBottom: 20, lineHeight: 1.5 },
+  contractBadge: {
+    display: 'inline-block',
+    background: '#f1f5f9',
+    border: '1px solid #cbd5e1',
+    color: '#334155',
+    padding: '4px 8px',
+    borderRadius: 4,
     fontSize: 12,
-    color: '#666',
+    fontFamily: 'monospace',
     marginBottom: 20,
   },
   btn: {
-    marginTop: 16,
+    marginTop: 20,
     width: '100%',
     padding: '12px',
     background: '#e94560',
@@ -24,62 +27,90 @@ const s = {
     border: 'none',
     borderRadius: 6,
     fontSize: 16,
+    fontWeight: 600,
     cursor: 'pointer',
+    transition: 'background 0.2s',
   },
   btnDisabled: {
-    background: '#aaa',
+    background: '#94a3b8',
     cursor: 'not-allowed',
   },
-  ok: {
-    color: '#27ae60',
-    fontWeight: 600,
-    marginTop: 16,
-    padding: 12,
-    background: '#eafaf1',
+  resultCard: {
+    borderRadius: 8,
+    padding: 20,
+    marginTop: 24,
+    border: '1px solid #86efac',
+    background: '#f0fdf4',
+  },
+  resultTitle: {
+    color: '#166534',
+    fontSize: 18,
+    fontWeight: 700,
+    margin: '0 0 10px 0',
+  },
+  resultDetail: {
+    fontSize: 14,
+    color: '#15803d',
+    marginBottom: 6,
+  },
+  actionLink: {
+    display: 'inline-block',
+    marginTop: 14,
+    padding: '8px 16px',
+    background: '#16a34a',
+    color: '#fff',
     borderRadius: 6,
-    border: '1px solid #a3e4d7',
+    textDecoration: 'none',
+    fontWeight: 600,
+    fontSize: 14,
   },
   err: {
-    color: '#c0392b',
-    marginTop: 12,
+    color: '#991b1b',
+    marginTop: 16,
     fontSize: 13,
-    padding: 12,
-    background: '#fde8e8',
+    padding: 14,
+    background: '#fef2f2',
     borderRadius: 6,
-    border: '1px solid #f8b4b4',
+    border: '1px solid #fecaca',
+    lineHeight: 1.4,
   },
 };
 
 export default function Enroll() {
   const [file, setFile] = useState(null);
-  const [status, setStatus] = useState('');
+  const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e) {
     e.preventDefault();
     if (!file) {
-      setError('Please select a palm image first.');
+      setError('Please select an NIR palm image file first.');
       return;
     }
     setError('');
-    setStatus('');
+    setResult(null);
     setLoading(true);
 
     try {
+      // Multipart/form-data upload to Express POST /api/biometric/enroll
       const form = new FormData();
       form.append('palm_image', file);
 
       const { data } = await client.post('/biometric/enroll', form);
-      setStatus(`✓ ${data.message || 'Enrolled successfully'} (method: ${data.method || 'hog-baseline-v1'})`);
+
+      // Confirm response format with Charan's contract:
+      // Returns { enrolled: true, method: "hog-baseline-v1", created_at: "..." }
+      // or { message: "Enrolled successfully", method: "hog-baseline-v1" }
+      setResult(data);
     } catch (err) {
-      // Never fake success — report actual API response/error
+      // Surface actual backend error; never fake success
       const errorMsg =
         err.response?.data?.error ||
         err.response?.data?.message ||
-        (err.response?.status === 501
-          ? 'Enrollment API pending backend implementation (501 Not Implemented).'
-          : 'Enrollment request failed');
+        (err.code === 'ERR_NETWORK'
+          ? 'Cannot connect to backend server. Ensure Express API is running.'
+          : err.message || 'Enrollment request failed');
       setError(errorMsg);
     } finally {
       setLoading(false);
@@ -88,29 +119,52 @@ export default function Enroll() {
 
   return (
     <div style={s.page}>
-      <h1 style={s.title}>🖐 Palm Enrollment</h1>
+      <h1 style={s.title}>🖐 Palm Biometric Enrollment</h1>
       <p style={s.desc}>
-        Upload a suitable near-infrared (NIR) palm image to register your biometric template.
-        This template will be used to verify your identity during payments.
-        Re-uploading replaces your existing template.
+        Upload an NIR palm image to register your biometric vein template.
+        The template is extracted server-side using HOG feature analysis and stored securely.
+        Re-enrolling will replace any previously registered template.
       </p>
 
-      <div style={s.notice}>
-        <strong>API Endpoint:</strong> <code>POST /api/biometric/enroll</code> (requires Bearer token).
+      <div style={s.contractBadge}>
+        Contract: POST /api/biometric/enroll (multipart/form-data: palm_image)
       </div>
 
       <form onSubmit={onSubmit}>
         <ImageUploader onFile={setFile} label="Select NIR Palm Image for Enrollment" />
+
         {error && <div style={s.err}>{error}</div>}
-        {status && <div style={s.ok}>{status}</div>}
+
         <button
           style={{ ...s.btn, ...(loading || !file ? s.btnDisabled : {}) }}
           type="submit"
           disabled={loading || !file}
         >
-          {loading ? 'Processing Enrollment…' : 'Enroll Palm'}
+          {loading ? 'Extracting HOG Features & Enrolling…' : 'Enroll Palm Template'}
         </button>
       </form>
+
+      {result && (
+        <div style={s.resultCard}>
+          <div style={s.resultTitle}>
+            ✓ {result.message || 'Biometric Template Enrolled Successfully!'}
+          </div>
+          <div style={s.resultDetail}>
+            <strong>Extraction Method:</strong> <code>{result.method || 'hog-baseline-v1'}</code>
+          </div>
+          {result.created_at && (
+            <div style={s.resultDetail}>
+              <strong>Registered At:</strong> {new Date(result.created_at).toLocaleString()}
+            </div>
+          )}
+          <p style={{ fontSize: 13, color: '#334155', marginTop: 10 }}>
+            Your biometric template is now registered on your account. You can proceed to test verification or make simulated merchant payments.
+          </p>
+          <Link to="/verify" style={s.actionLink}>
+            Proceed to Palm Verification →
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
