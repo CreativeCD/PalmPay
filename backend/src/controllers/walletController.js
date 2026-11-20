@@ -1,6 +1,23 @@
 'use strict';
-/** STUB — Awaiting db.js (Vaibhav, Day 1). Implementation: Day 2. */
-async function getWallet(_req, res) {
-  res.status(501).json({ error: 'Not implemented yet.' });
+/**
+ * walletController.js — Read wallet balance.
+ *
+ * Route (Charan's file, NOT edited):
+ *   GET /api/wallet   (auth middleware applied by router)
+ */
+
+const walletRepo = require('../repositories/walletRepository');
+
+/**
+ * GET /api/wallet
+ * Returns: { wallet: { id, user_id, balance, updated_at } }
+ */
+async function getWallet(req, res) {
+  const wallet = await walletRepo.getWallet(req.user.id);
+  if (!wallet) {
+    return res.status(404).json({ error: 'Wallet not found for this user.' });
+  }
+  return res.json({ wallet });
 }
+
 module.exports = { getWallet };
